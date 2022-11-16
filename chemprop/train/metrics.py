@@ -8,6 +8,7 @@ import torch.nn as nn
 from sklearn.metrics import auc, mean_absolute_error, mean_squared_error, precision_recall_curve, r2_score,\
     roc_auc_score, accuracy_score, log_loss, f1_score, matthews_corrcoef
 
+import tensorflow as tf
 
 def get_metric_func(metric: str) -> Callable[[Union[List[int], List[float]], List[float]], float]:
     r"""
@@ -77,6 +78,12 @@ def get_metric_func(metric: str) -> Callable[[Union[List[int], List[float]], Lis
     
     if metric == 'wasserstein':
         return wasserstein_metric
+
+    if metric == 'cindex':
+        return cindex
+
+    if metric == 'cindex_tensorflow':
+        return cindex_tensorflow
 
     raise ValueError(f'Metric "{metric}" not supported.')
 
@@ -211,6 +218,35 @@ def accuracy(targets: List[int], preds: Union[List[float], List[List[float]]], t
         hard_preds = [1 if p > threshold else 0 for p in preds]  # binary prediction
 
     return accuracy_score(targets, hard_preds)
+
+def cindex(targets: List[float], preds: List[float]) -> float:
+    summ = 0
+    pair = 0
+    
+    for i in range(1, len(targets)):
+        for j in range(0, i):
+            if i is not j:
+                if(targets[i] > targets[j]):
+                    pair +=1
+                    summ +=  1* (preds[i] > preds[j]) + 0.5 * (preds[i] == preds[j])
+        
+            
+    if pair is not 0:
+        return summ/pair
+    else:
+        return 0
+
+def cindex_tensorflow(targets: List[float], preds: List[float]) -> float:
+    g = tf.subtract(tf.expand_dims(preds, -1), preds)
+    g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
+
+    f = tf.subtract(tf.expand_dims(targets, -1), targets) > 0.0
+    f = tf.compat.v1.matrix_band_part(tf.cast(f, tf.float32), -1, 0)
+
+    g = tf.reduce_sum(tf.multiply(g, f))
+    f = tf.reduce_sum(f)
+
+    return float(tf.where(tf.equal(g, 0), 0.0, g/f))
 
 
 def f1_metric(targets: List[int], preds: Union[List[float], List[List[float]]], threshold: float = 0.5) -> float:
