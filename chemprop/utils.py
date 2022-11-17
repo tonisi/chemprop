@@ -794,6 +794,7 @@ def multitask_mean(
     nonscale_dependent_metrics = [
         "auc", "prc-auc", "r2", "accuracy", "cross_entropy",
         "binary_cross_entropy", "sid", "wasserstein", "f1", "mcc",
+        "cindex", "cindex_tensorflow",
     ]
 
     if metric in scale_dependent_metrics:
